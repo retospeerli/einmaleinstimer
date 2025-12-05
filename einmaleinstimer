@@ -2,7 +2,7 @@
 <html lang="de">
 <head>
   <meta charset="UTF-8">
-  <title>Kleines Einmaleins – Reihen-Trainer mit Timer</title>
+  <title>Kleines Einmaleins – Reihen-Trainer (1 Reihe, 20 Aufgaben)</title>
   <style>
     :root {
       font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
@@ -63,31 +63,12 @@
     .reihe-btn:active {
       transform: translateY(1px);
     }
-    .row-actions {
-      display: flex;
-      gap: 0.5rem;
-      margin-bottom: 0.5rem;
-      flex-wrap: wrap;
-      justify-content: center;
-    }
-    .row-actions button {
-      padding: 0.35rem 0.9rem;
-      border-radius: 999px;
-      border: none;
-      cursor: pointer;
-      font-size: 0.85rem;
-      background: #e5e7eb;
-      color: #374151;
-      font-weight: 500;
-    }
-    .row-actions button:hover {
-      background: #d1d5db;
-    }
     .selected-info {
       font-size: 0.85rem;
       color: #6b7280;
       text-align: center;
       min-height: 1.2rem;
+      margin-bottom: 0.5rem;
     }
     .equation {
       font-size: 2rem;
@@ -175,23 +156,18 @@
 <div class="app">
   <h1>Kleines Einmaleins</h1>
   <div class="subtitle">
-    Wähle die Reihen aus, die du üben möchtest (2–10) <br>
-    und klicke dann auf „Los!“ – jede Aufgabe hat 15 Sekunden Zeit.
+    Wähle eine Reihe (2–10) für deinen Selbsttest.<br>
+    20 Aufgaben, jeweils mit 15 Sekunden Zeit.
   </div>
 
   <!-- Start-Bereich mit Reihen-Auswahl -->
   <div id="start-screen">
     <div class="center">
-      <p>Du kannst eine oder mehrere Reihen auswählen.</p>
+      <p>Bitte genau <strong>eine</strong> Reihe auswählen.</p>
     </div>
 
     <div class="reihen-grid" id="reihen-grid">
       <!-- Buttons 2–10 werden per JS erzeugt -->
-    </div>
-
-    <div class="row-actions">
-      <button type="button" id="select-all-btn">Alle auswählen</button>
-      <button type="button" id="clear-all-btn">Auswahl löschen</button>
     </div>
 
     <div class="selected-info" id="selected-info"></div>
@@ -210,10 +186,10 @@
     <button class="primary-btn" id="submit-btn">OK</button>
     <div class="feedback" id="feedback"></div>
     <div class="stats">
-      Bisher richtig: <span id="stat-correct">0</span> / <span id="stat-total">50</span><br>
+      Bisher richtig: <span id="stat-correct">0</span> / <span id="stat-total">20</span><br>
       Davon beim ersten Versuch richtig: <span id="stat-firsttry">0</span><br>
       Falsche Versuche insgesamt: <span id="stat-wrong">0</span><br>
-      Geübte Reihen: <span id="stat-rows"></span>
+      Geübte Reihe: <span id="stat-rows"></span>
     </div>
   </div>
 
@@ -226,12 +202,12 @@
 </div>
 
 <script>
-  const TOTAL_QUESTIONS = 50;
+  const TOTAL_QUESTIONS = 20;
   const MIN_FACTOR = 1;
   const MAX_FACTOR = 10;
   const TIME_PER_QUESTION = 15; // Sekunden
 
-  let selectedRows = [];          // z. B. [2,3,5]
+  let selectedRow = null;        // einzelne Reihe, z. B. 7
   let currentQuestion = null;
   let questionsSolved = 0;
   let attemptsCurrent = 0;
@@ -248,8 +224,6 @@
   const reihenGrid = document.getElementById('reihen-grid');
   const selectedInfo = document.getElementById('selected-info');
   const startBtn = document.getElementById('start-btn');
-  const selectAllBtn = document.getElementById('select-all-btn');
-  const clearAllBtn = document.getElementById('clear-all-btn');
 
   const progressText = document.getElementById('progress-text');
   const equationText = document.getElementById('equation-text');
@@ -279,29 +253,29 @@
 
   // Info aktualisieren & Start-Button aktivieren/deaktivieren
   function updateSelectedInfo() {
-    if (selectedRows.length === 0) {
+    if (selectedRow === null) {
       selectedInfo.textContent = 'Keine Reihe ausgewählt.';
       startBtn.disabled = true;
     } else {
-      selectedInfo.textContent = 'Ausgewählte Reihen: ' + selectedRows.join(', ');
+      selectedInfo.textContent = 'Ausgewählte Reihe: ' + selectedRow;
       startBtn.disabled = false;
     }
   }
 
+  // Nur eine Reihe auswählbar (erneuter Klick auf dieselbe Reihe = abwählen)
   function toggleRow(n) {
-    const idx = selectedRows.indexOf(n);
     const buttons = reihenGrid.querySelectorAll('.reihe-btn');
 
-    if (idx === -1) {
-      selectedRows.push(n);
+    if (selectedRow === n) {
+      // abwählen
+      selectedRow = null;
     } else {
-      selectedRows.splice(idx, 1);
+      selectedRow = n;
     }
 
-    // Buttons optisch aktualisieren
     buttons.forEach(btn => {
       const val = Number(btn.dataset.value);
-      if (selectedRows.includes(val)) {
+      if (val === selectedRow) {
         btn.classList.add('selected');
       } else {
         btn.classList.remove('selected');
@@ -310,23 +284,6 @@
 
     updateSelectedInfo();
   }
-
-  selectAllBtn.addEventListener('click', () => {
-    selectedRows = [];
-    for (let n = 2; n <= 10; n++) {
-      selectedRows.push(n);
-    }
-    const buttons = reihenGrid.querySelectorAll('.reihe-btn');
-    buttons.forEach(btn => btn.classList.add('selected'));
-    updateSelectedInfo();
-  });
-
-  clearAllBtn.addEventListener('click', () => {
-    selectedRows = [];
-    const buttons = reihenGrid.querySelectorAll('.reihe-btn');
-    buttons.forEach(btn => btn.classList.remove('selected'));
-    updateSelectedInfo();
-  });
 
   // Start-Button
   startBtn.addEventListener('click', startTraining);
@@ -347,7 +304,7 @@
   });
 
   function startTraining() {
-    if (selectedRows.length === 0) return;
+    if (selectedRow === null) return;
 
     questionsSolved = 0;
     attemptsCurrent = 0;
@@ -358,7 +315,7 @@
     statTotal.textContent = TOTAL_QUESTIONS.toString();
     statFirsttry.textContent = '0';
     statWrong.textContent = '0';
-    statRows.textContent = selectedRows.join(', ');
+    statRows.textContent = selectedRow.toString();
     feedback.textContent = '';
     feedback.className = 'feedback';
 
@@ -408,7 +365,7 @@
     startTimer();
   }
 
-  // Neue Aufgabe erzeugen: eine ausgewählte Reihe * 1–10 in verschiedenen Varianten
+  // Neue Aufgabe erzeugen: ausgewählte Reihe * 1–10 in verschiedenen Varianten
   function newQuestion() {
     attemptsCurrent = 0;
     feedback.textContent = '';
@@ -426,12 +383,12 @@
   }
 
   function generateQuestion() {
-    const row = randomChoice(selectedRows);            // z. B. 7er Reihe
-    const b = randomInt(MIN_FACTOR, MAX_FACTOR);       // Faktor 1–10
+    const row = selectedRow;                       // feste Reihe
+    const b = randomInt(MIN_FACTOR, MAX_FACTOR);   // Faktor 1–10
     const product = row * b;
 
     // Varianten:
-    // 0: x · b = product  (Faktor der gewählten Reihe suchen)
+    // 0: x · b = product  (Faktor der Reihe suchen)
     // 1: row · x = product
     // 2: row · b = ?      (Produkt suchen)
     const variant = randomInt(0, 2);
@@ -519,10 +476,10 @@
     resultScreen.classList.remove('hidden');
 
     const quote = (correctFirstTry / TOTAL_QUESTIONS * 100).toFixed(0);
-    const rowsText = selectedRows.join(', ');
+    const rowText = selectedRow;
 
     resultSummary.innerHTML =
-      `Du hast <strong>${TOTAL_QUESTIONS}</strong> Aufgaben zu den Reihen <strong>${rowsText}</strong> gelöst.<br>` +
+      `Du hast <strong>${TOTAL_QUESTIONS}</strong> Aufgaben zur <strong>${rowText}er-Reihe</strong> gelöst.<br>` +
       `Davon waren <strong>${correctFirstTry}</strong> schon beim ersten Versuch richtig ` +
       `(<strong>${quote}%</strong>).<br>` +
       `Du hattest insgesamt <strong>${wrongAttemptsTotal}</strong> falsche Versuche.`;
@@ -530,10 +487,6 @@
 
   function randomInt(min, max) {
     return Math.floor(Math.random() * (max - min + 1)) + min;
-  }
-
-  function randomChoice(arr) {
-    return arr[Math.floor(Math.random() * arr.length)];
   }
 
   // Initial: Info ohne Auswahl
