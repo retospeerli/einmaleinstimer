@@ -488,7 +488,20 @@
   function randomInt(min, max) {
     return Math.floor(Math.random() * (max - min + 1)) + min;
   }
+// *** WICHTIG für LearningView: Aufgabe als erledigt melden ***
+    try {
+      if (window.parent && window.parent !== window) {
+        window.parent.postMessage('AppSolved', '*');
+      }
+    } catch (e) {
+      // falls außerhalb von LV geöffnet, einfach ignorieren
+      console.warn('postMessage AppSolved nicht möglich:', e);
+    }
+  }
 
+  function randomInt(min, max) {
+    return Math.floor(Math.random() * (max - min + 1)) + min;
+  }
   // Initial: Info ohne Auswahl
   updateSelectedInfo();
 </script>
