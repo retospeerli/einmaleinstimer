@@ -208,7 +208,6 @@
     <div class="feedback" id="feedback"></div>
     <div class="stats">
       Bisher richtig: <span id="stat-correct">0</span> / <span id="stat-total">20</span><br>
-      Davon beim ersten Versuch richtig: <span id="stat-firsttry">0</span><br>
       Falsche Versuche insgesamt: <span id="stat-wrong">0</span><br>
       Geübte Reihe: <span id="stat-rows"></span>
     </div>
@@ -236,10 +235,12 @@
 
   let selectedRow = null;        // einzelne Reihe, z. B. 7
   let currentQuestion = null;
-  let questionsSolved = 0;
-  let attemptsCurrent = 0;
-  let correctFirstTry = 0;
-  let wrongAttemptsTotal = 0;
+
+  let questionsDone = 0;         // wie viele Aufgaben bereits gewertet (richtig oder falsch)
+  let correctAnswers = 0;        // wie viele davon richtig
+  let wrongAttemptsTotal = 0;    // falsche Antworten + Zeitüberschreitungen
+
+  let usedQuestions = [];        // Merkt sich Kombinationen row, b, variant pro Durchgang
 
   let timeLeft = TIME_PER_QUESTION;
   let timerId = null;
@@ -258,7 +259,6 @@
   const feedback = document.getElementById('feedback');
   const statCorrect = document.getElementById('stat-correct');
   const statTotal = document.getElementById('stat-total');
-  const statFirsttry = document.getElementById('stat-firsttry');
   const statWrong = document.getElementById('stat-wrong');
   const statRows = document.getElementById('stat-rows');
   const variantLabel = document.getElementById('variant-label');
@@ -315,7 +315,7 @@
   submitBtn.addEventListener('click', checkAnswer);
 
   restartBtn.addEventListener('click', () => {
-    // Noch ein Durchlauf, gleiche Reihe bleibt gewählt
+    // Noch ein Durchlauf, gleiche Reihe bleibt
     stopTimer();
     quizScreen.classList.add('hidden');
     resultScreen.classList.add('hidden');
@@ -323,7 +323,7 @@
   });
 
   finishBtn.addEventListener('click', () => {
-    // Hier LearningView informieren
+    // LearningView informieren
     try {
       if (window.parent && window.parent !== window) {
         window.parent.postMessage('AppSolved', '*');
@@ -342,14 +342,13 @@
   function startTraining() {
     if (selectedRow === null) return;
 
-    questionsSolved = 0;
-    attemptsCurrent = 0;
-    correctFirstTry = 0;
+    questionsDone = 0;
+    correctAnswers = 0;
     wrongAttemptsTotal = 0;
+    usedQuestions = [];
 
     statCorrect.textContent = '0';
     statTotal.textContent = TOTAL_QUESTIONS.toString();
-    statFirsttry.textContent = '0';
     statWrong.textContent = '0';
     statRows.textContent = selectedRow.toString();
     feedback.textContent = '';
@@ -387,25 +386,32 @@
   }
 
   function updateProgressText() {
+    // questionsDone ist Anzahl bereits gewerteter Aufgaben
+    const aktuelleNummer = Math.min(questionsDone + 1, TOTAL_QUESTIONS);
     progressText.textContent =
-      `Aufgabe ${questionsSolved + 1} von ${TOTAL_QUESTIONS} – Zeit: ${timeLeft} s`;
+      `Aufgabe ${aktuelleNummer} von ${TOTAL_QUESTIONS} – Zeit: ${timeLeft} s`;
   }
 
   function handleTimeout() {
     stopTimer();
     wrongAttemptsTotal++;
     statWrong.textContent = wrongAttemptsTotal.toString();
-    feedback.textContent = 'Zeit abgelaufen! Versuch es nochmal!';
+    feedback.textContent = 'Zeit abgelaufen. Die richtige Antwort war: ' + currentQuestion.answer;
     feedback.className = 'feedback error';
-    startTimer();
+
+    questionsDone++;
+    if (questionsDone >= TOTAL_QUESTIONS) {
+      setTimeout(endTraining, 800);
+    } else {
+      setTimeout(newQuestion, 800);
+    }
   }
 
   function newQuestion() {
-    attemptsCurrent = 0;
     feedback.textContent = '';
     feedback.className = 'feedback';
 
-    currentQuestion = generateQuestion();
+    currentQuestion = generateUniqueQuestion();
     equationText.textContent = currentQuestion.display;
     variantLabel.textContent = currentQuestion.variantLabel;
 
@@ -416,12 +422,29 @@
     startTimer();
   }
 
-  function generateQuestion() {
+  // garantiert pro Durchgang keine Wiederholung (row, b, variant)
+  function generateUniqueQuestion() {
     const row = selectedRow;
-    const b = randomInt(MIN_FACTOR, MAX_FACTOR);
-    const product = row * b;
+    let b, variant;
+    let tries = 0;
+    let exists;
 
-    const variant = randomInt(0, 2);
+    do {
+      b = randomInt(MIN_FACTOR, MAX_FACTOR);
+      variant = randomInt(0, 2);
+      exists = usedQuestions.some(q =>
+        q.row === row && q.b === b && q.variant === variant
+      );
+      tries++;
+      // Notfalls Abbruch nach vielen Versuchen (sollte bei 20/30 Kombinationen nicht vorkommen)
+      if (tries > 100) {
+        break;
+      }
+    } while (exists);
+
+    usedQuestions.push({ row, b, variant });
+
+    const product = row * b;
     let display, answer, label;
 
     if (variant === 0) {
@@ -466,33 +489,27 @@
       return;
     }
 
-    attemptsCurrent++;
+    stopTimer(); // Antwort beendet die Aufgabe, egal ob richtig oder falsch
 
     if (given === currentQuestion.answer) {
-      stopTimer();
-      if (attemptsCurrent === 1) {
-        correctFirstTry++;
-      }
-      questionsSolved++;
-
-      statCorrect.textContent = questionsSolved.toString();
-      statFirsttry.textContent = correctFirstTry.toString();
+      correctAnswers++;
+      statCorrect.textContent = correctAnswers.toString();
 
       feedback.textContent = 'Richtig! 👍';
       feedback.className = 'feedback ok';
-
-      if (questionsSolved >= TOTAL_QUESTIONS) {
-        endTraining();
-      } else {
-        setTimeout(newQuestion, 500);
-      }
     } else {
       wrongAttemptsTotal++;
       statWrong.textContent = wrongAttemptsTotal.toString();
-      feedback.textContent = 'Leider falsch. Versuch es nochmal!';
+      feedback.textContent = 'Leider falsch. Die richtige Antwort war: ' + currentQuestion.answer;
       feedback.className = 'feedback error';
-      answerInput.select();
-      answerInput.focus();
+    }
+
+    questionsDone++;
+
+    if (questionsDone >= TOTAL_QUESTIONS) {
+      setTimeout(endTraining, 800);
+    } else {
+      setTimeout(newQuestion, 800);
     }
   }
 
@@ -501,14 +518,14 @@
     quizScreen.classList.add('hidden');
     resultScreen.classList.remove('hidden');
 
-    const quote = (correctFirstTry / TOTAL_QUESTIONS * 100).toFixed(0);
+    const quote = (correctAnswers / TOTAL_QUESTIONS * 100).toFixed(0);
     const rowText = selectedRow;
 
     resultSummary.innerHTML =
       `Du hast <strong>${TOTAL_QUESTIONS}</strong> Aufgaben zur <strong>${rowText}er-Reihe</strong> gelöst.<br>` +
-      `Davon waren <strong>${correctFirstTry}</strong> schon beim ersten Versuch richtig ` +
+      `Davon waren <strong>${correctAnswers}</strong> richtig ` +
       `(<strong>${quote}%</strong>).<br>` +
-      `Du hattest insgesamt <strong>${wrongAttemptsTotal}</strong> falsche Versuche.`;
+      `Du hattest insgesamt <strong>${wrongAttemptsTotal}</strong> falsche Versuche (inkl. Zeitüberschreitungen).`;
   }
 
   function randomInt(min, max) {
