@@ -121,6 +121,27 @@
       cursor: not-allowed;
       box-shadow: none;
     }
+    .secondary-btn {
+      margin-top: 0.4rem;
+      width: 100%;
+      padding: 0.6rem 1rem;
+      font-size: 1rem;
+      border-radius: 999px;
+      border: 1px solid #d1d5db;
+      cursor: pointer;
+      background: #f9fafb;
+      color: #111827;
+      font-weight: 500;
+      transition: transform 0.05s ease, box-shadow 0.05s ease, background 0.2s ease, border-color 0.2s ease;
+    }
+    .secondary-btn:hover {
+      background: #e5e7eb;
+      border-color: #9ca3af;
+    }
+    .secondary-btn:active {
+      transform: translateY(1px);
+      box-shadow: 0 2px 6px rgba(0,0,0,0.15);
+    }
     .feedback {
       min-height: 1.4rem;
       margin-top: 0.4rem;
@@ -198,10 +219,12 @@
     <h2>Fertig! 🎉</h2>
     <p id="result-summary"></p>
     <p style="margin-top:0.8rem; font-size:0.9rem; color:#4b5563;">
-      Kehre nun zu LearningView zurück.<br>
-      Dort wird die Aufgabe automatisch als <strong>„erledigt“</strong> markiert.
+      Wenn du mit deinem Ergebnis zufrieden bist,<br>
+      klicke auf <strong>„Fertig“</strong>, damit LearningView den Auftrag als erledigt markiert.<br>
+      Oder klicke auf <strong>„Weiter üben“</strong>, um noch einen Durchgang zu machen.
     </p>
-    <button class="primary-btn" id="restart-btn">Nochmal mit Reihen-Auswahl</button>
+    <button class="primary-btn" id="finish-btn">Fertig</button>
+    <button class="secondary-btn" id="restart-btn">Weiter üben</button>
   </div>
 </div>
 
@@ -243,6 +266,7 @@
 
   const submitBtn = document.getElementById('submit-btn');
   const restartBtn = document.getElementById('restart-btn');
+  const finishBtn = document.getElementById('finish-btn');
 
   // Reihen-Buttons erzeugen (2–10)
   for (let n = 2; n <= 10; n++) {
@@ -265,6 +289,7 @@
     }
   }
 
+  // Nur eine Reihe auswählbar
   function toggleRow(n) {
     const buttons = reihenGrid.querySelectorAll('.reihe-btn');
 
@@ -288,11 +313,24 @@
 
   startBtn.addEventListener('click', startTraining);
   submitBtn.addEventListener('click', checkAnswer);
+
   restartBtn.addEventListener('click', () => {
+    // Noch ein Durchlauf, gleiche Reihe bleibt gewählt
     stopTimer();
     quizScreen.classList.add('hidden');
     resultScreen.classList.add('hidden');
-    startScreen.classList.remove('hidden');
+    startTraining();
+  });
+
+  finishBtn.addEventListener('click', () => {
+    // Hier LearningView informieren
+    try {
+      if (window.parent && window.parent !== window) {
+        window.parent.postMessage('AppSolved', '*');
+      }
+    } catch (e) {
+      console.warn('postMessage AppSolved nicht möglich:', e);
+    }
   });
 
   answerInput.addEventListener('keydown', function (e) {
@@ -471,22 +509,13 @@
       `Davon waren <strong>${correctFirstTry}</strong> schon beim ersten Versuch richtig ` +
       `(<strong>${quote}%</strong>).<br>` +
       `Du hattest insgesamt <strong>${wrongAttemptsTotal}</strong> falsche Versuche.`;
-
-    // *** WICHTIG für LearningView: Aufgabe als erledigt melden ***
-    try {
-      if (window.parent && window.parent !== window) {
-        window.parent.postMessage('AppSolved', '*');
-      }
-    } catch (e) {
-      // falls außerhalb von LV geöffnet, einfach ignorieren
-      console.warn('postMessage AppSolved nicht möglich:', e);
-    }
   }
 
   function randomInt(min, max) {
     return Math.floor(Math.random() * (max - min + 1)) + min;
   }
 
+  // Initial
   updateSelectedInfo();
 </script>
 </body>
