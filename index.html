@@ -2,7 +2,7 @@
 <html lang="de">
 <head>
   <meta charset="UTF-8">
-  <title>Kleines Einmaleins – Reihen-Trainer (1 Reihe, 20 Aufgaben)</title>
+  <title>Kleines Einmaleins – Selbsttest (LearningView)</title>
   <style>
     :root {
       font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
@@ -197,6 +197,10 @@
   <div id="result-screen" class="hidden center">
     <h2>Fertig! 🎉</h2>
     <p id="result-summary"></p>
+    <p style="margin-top:0.8rem; font-size:0.9rem; color:#4b5563;">
+      Kehre nun zu LearningView zurück.<br>
+      Dort wird die Aufgabe automatisch als <strong>„erledigt“</strong> markiert.
+    </p>
     <button class="primary-btn" id="restart-btn">Nochmal mit Reihen-Auswahl</button>
   </div>
 </div>
@@ -251,7 +255,6 @@
     reihenGrid.appendChild(btn);
   }
 
-  // Info aktualisieren & Start-Button aktivieren/deaktivieren
   function updateSelectedInfo() {
     if (selectedRow === null) {
       selectedInfo.textContent = 'Keine Reihe ausgewählt.';
@@ -262,12 +265,10 @@
     }
   }
 
-  // Nur eine Reihe auswählbar (erneuter Klick auf dieselbe Reihe = abwählen)
   function toggleRow(n) {
     const buttons = reihenGrid.querySelectorAll('.reihe-btn');
 
     if (selectedRow === n) {
-      // abwählen
       selectedRow = null;
     } else {
       selectedRow = n;
@@ -285,18 +286,15 @@
     updateSelectedInfo();
   }
 
-  // Start-Button
   startBtn.addEventListener('click', startTraining);
   submitBtn.addEventListener('click', checkAnswer);
   restartBtn.addEventListener('click', () => {
-    // Zurück zur Reihen-Auswahl
     stopTimer();
     quizScreen.classList.add('hidden');
     resultScreen.classList.add('hidden');
     startScreen.classList.remove('hidden');
   });
 
-  // Enter im Eingabefeld = OK
   answerInput.addEventListener('keydown', function (e) {
     if (e.key === 'Enter') {
       checkAnswer();
@@ -326,7 +324,7 @@
     newQuestion();
   }
 
-  // Timer-Funktionen
+  // Timer
   function startTimer() {
     stopTimer();
     timeLeft = TIME_PER_QUESTION;
@@ -361,11 +359,9 @@
     statWrong.textContent = wrongAttemptsTotal.toString();
     feedback.textContent = 'Zeit abgelaufen! Versuch es nochmal!';
     feedback.className = 'feedback error';
-    // gleiche Aufgabe bleibt, Timer neu starten
     startTimer();
   }
 
-  // Neue Aufgabe erzeugen: ausgewählte Reihe * 1–10 in verschiedenen Varianten
   function newQuestion() {
     attemptsCurrent = 0;
     feedback.textContent = '';
@@ -383,16 +379,11 @@
   }
 
   function generateQuestion() {
-    const row = selectedRow;                       // feste Reihe
-    const b = randomInt(MIN_FACTOR, MAX_FACTOR);   // Faktor 1–10
+    const row = selectedRow;
+    const b = randomInt(MIN_FACTOR, MAX_FACTOR);
     const product = row * b;
 
-    // Varianten:
-    // 0: x · b = product  (Faktor der Reihe suchen)
-    // 1: row · x = product
-    // 2: row · b = ?      (Produkt suchen)
     const variant = randomInt(0, 2);
-
     let display, answer, label;
 
     if (variant === 0) {
@@ -440,7 +431,6 @@
     attemptsCurrent++;
 
     if (given === currentQuestion.answer) {
-      // Richtig
       stopTimer();
       if (attemptsCurrent === 1) {
         correctFirstTry++;
@@ -459,14 +449,12 @@
         setTimeout(newQuestion, 500);
       }
     } else {
-      // Falsch
       wrongAttemptsTotal++;
       statWrong.textContent = wrongAttemptsTotal.toString();
       feedback.textContent = 'Leider falsch. Versuch es nochmal!';
       feedback.className = 'feedback error';
       answerInput.select();
       answerInput.focus();
-      // Timer läuft weiter – die verbleibende Zeit bleibt.
     }
   }
 
@@ -483,12 +471,8 @@
       `Davon waren <strong>${correctFirstTry}</strong> schon beim ersten Versuch richtig ` +
       `(<strong>${quote}%</strong>).<br>` +
       `Du hattest insgesamt <strong>${wrongAttemptsTotal}</strong> falsche Versuche.`;
-  }
 
-  function randomInt(min, max) {
-    return Math.floor(Math.random() * (max - min + 1)) + min;
-  }
-// *** WICHTIG für LearningView: Aufgabe als erledigt melden ***
+    // *** WICHTIG für LearningView: Aufgabe als erledigt melden ***
     try {
       if (window.parent && window.parent !== window) {
         window.parent.postMessage('AppSolved', '*');
@@ -502,7 +486,7 @@
   function randomInt(min, max) {
     return Math.floor(Math.random() * (max - min + 1)) + min;
   }
-  // Initial: Info ohne Auswahl
+
   updateSelectedInfo();
 </script>
 </body>
